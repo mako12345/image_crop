@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from tkinter import *
+from tkinter import font
 from PIL import Image
 import os
 import glob
@@ -12,8 +13,8 @@ imgname_prefix = 'image_'
 csvlogfilename = 'crop.csv'
 
 
-_canvas_width = 600
-_canvas_height = 600
+_canvas_width = 700
+_canvas_height = 700
 _crop_width = 500
 _crop_height = 500
 
@@ -31,6 +32,8 @@ class MainWindow():
         # image file name must be 'prefix + number(0000-9999) .png'
         self.file_list = []
         for i in range(10000):
+
+            #png以外の画像ファイルにも対応させる
             filepath1 = './' + parentdir + '/' + inputdir + '/' + imgname_prefix + ('%04d' % i) + '.jpg'
             filepath2 = './' + parentdir + '/' + inputdir + '/' + imgname_prefix + ('%04d' % i) + '.jpeg'
             outputpath1 = './' + parentdir + '/' + inputdir + '/' + imgname_prefix + ('%04d' % i) + '.png'
@@ -45,14 +48,31 @@ class MainWindow():
 
             percent = (i / 10000)*100
 
+            #進捗具合をターミナルに表示させる
             sys.stdout.write("\rConverting....%.1f%%" % percent)
             sys.stdout.flush()
-
+            
             filepath = './' + parentdir + '/' + inputdir + '/' + imgname_prefix + ('%04d' % i) + '.png'
             outputpath = './' + parentdir + '/' + outputdir + '/' + imgname_prefix + ('%04d' % i) + '.png'
-            if os.path.exists(filepath):
+            if os.path.exists(filepath):       
+                #↓とりあえず初期化
+                self.img_resize = Image.open(filepath)
+                
+                #元画像の大きさを取得
+                self.w, self.h = self.img_resize.size
+                
+                #画像がキャンバスよりも大きかったらキャンバスに合わせる
+                if self.w > _canvas_width or self.h > _canvas_height:
+                    if self.w >=  self.h:
+                        self.img_resize = self.img_resize.resize((_canvas_width, int(_canvas_width * self.h / self.w)),Image.ANTIALIAS)
+                    else:
+                        self.img_resize = self.img_resize.resize((int(_canvas_height * self.w / self.h), _canvas_height),Image.ANTIALIAS)
+                #resizeした画像を保存する
+                self.img_resize.save(outputpath1)
+                #画像ファイルのリストを作る
                 self.file_list.append((i, filepath, outputpath))
         print ('\nComplete!!!!')
+
         # load cropping frame information if csv file exists
         self.crop_frame_dic = {}
         self.csvfilepath = './' + parentdir + '/' + csvlogfilename
@@ -66,7 +86,7 @@ class MainWindow():
         # load first image
         self.now_image_index = 0
         self.nowimage = PhotoImage(file=self.file_list[0][1])
-        self.image_on_canvas = self.canvas.create_image(0, 0, anchor=NW, image=self.nowimage)
+        self.image_on_canvas = self.canvas.create_image(0, 30, anchor=NW, image=self.nowimage)
 
         # set callback function for key and mouse events
         self.canvas.bind('<Right>', self.right_key_pressed)
@@ -74,10 +94,10 @@ class MainWindow():
         self.canvas.bind('<space>', self.space_key_pressed)
         self.canvas.bind("<B1-Motion>", self.mouse_rclick_moving)
         #  mouse event with Windows OS
-        root.bind("<MouseWheel>", self.zoomer)
+        root.bind("<MouseWheel>", self.mouse_wheel_moving)
         #  mouse event with Linux OS
-        #root.bind("<Button-4>", self.mouse_wheel_moving)
-        #root.bind("<Button-5>", self.mouse_wheel_moving)
+        root.bind("<Button-4>", self.mouse_wheel_moving)
+        root.bind("<Button-5>", self.mouse_wheel_moving)
 
         self.canvas.focus_set() #need to recive key events
 
@@ -196,7 +216,7 @@ class MainWindow():
     def __saveCropImage(self):
         im = Image.open(self.file_list[self.now_image_index][1])
         sx, sy, ex, ey = self.__getCropFrameCoordinate()
-        im_crop = im.crop((sx, sy, ex, ey))
+        im_crop = im.crop((sx, sy-30, ex, ey-30))
         im_crop_resized  = im_crop.resize((_crop_width, _crop_height))
         im_crop_resized.save(self.file_list[self.now_image_index][2], quality=95)
 
